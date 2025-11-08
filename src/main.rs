@@ -3,7 +3,11 @@
 
 extern crate alloc;
 
+use alloc::vec::Vec;
+
+use embedded_graphics::Drawable;
 use embedded_graphics::geometry::Point;
+use embedded_graphics::image::{Image, ImageRaw};
 use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use embedded_graphics::prelude::Size;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle, StyledDrawable};
@@ -42,11 +46,51 @@ fn main() -> Status {
         .draw_styled(&mut PrimitiveStyle::with_fill(Rgb888::YELLOW), &mut display)
         .unwrap();
 
+    let image = MyImage::new();
+
+    image.guard().image().draw(&mut display).unwrap();
+
     // Flush everything
     display.flush();
 
-    // wait 10000000 microseconds (10 seconds)
-    boot::stall(10_000_000);
+    boot::stall(100_000_000);
 
     Status::SUCCESS
+}
+
+struct MyImage {
+    data: Vec<u8>,
+}
+
+struct ImageGuard<'a> {
+    data: ImageRaw<'a, Rgb888>,
+}
+
+impl MyImage {
+    fn new() -> Self {
+        let mut data = Vec::new();
+        for i in 0..300 {
+            for j in 0..300 {
+                let x = (i / 10 + j / 10) % 3;
+                let r = if x == 0 { 255 } else { 0 };
+                let g = if x == 1 { 255 } else { 0 };
+                let b = if x == 2 { 255 } else { 0 };
+                data.push(r);
+                data.push(g);
+                data.push(b);
+            }
+        }
+        MyImage { data: data }
+    }
+    fn guard<'a>(&'a self) -> ImageGuard<'a> {
+        ImageGuard {
+            data: ImageRaw::new(&self.data, 300),
+        }
+    }
+}
+
+impl<'a> ImageGuard<'a> {
+    fn image(&'a self) -> Image<'a, ImageRaw<'a, Rgb888>> {
+        Image::new(&self.data, Point::new(100, 100))
+    }
 }
