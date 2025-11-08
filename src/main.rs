@@ -1,7 +1,10 @@
 #![no_main]
 #![no_std]
 
+#[macro_use]
 extern crate alloc;
+
+mod characters;
 
 use alloc::vec::Vec;
 
@@ -50,6 +53,10 @@ fn main() -> Status {
 
     image.guard().image().draw(&mut display).unwrap();
 
+    let text = MyImage::from(text());
+
+    text.guard().image().draw(&mut display).unwrap();
+
     // Flush everything
     display.flush();
 
@@ -64,6 +71,33 @@ struct MyImage {
 
 struct ImageGuard<'a> {
     data: ImageRaw<'a, Rgb888>,
+}
+
+impl From<Vec<u8>> for MyImage {
+    fn from(data: Vec<u8>) -> Self {
+        MyImage { data }
+    }
+}
+
+fn text() -> MyImage {
+    let mut buffer = vec![255; 300 * 32 * 3];
+    let mut x_cursor = 0;
+    for c in "中华人民共和国".chars() {
+        let character = characters::character_get_bitmap(c as _);
+        for i in 0..32 {
+            for j in 0..32 {
+                if character[j] & (1 << i) != 0 {
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3] = 0;
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 1] = 0;
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 2] = 0;
+                }
+            }
+        }
+
+        x_cursor += 32;
+    }
+
+    MyImage::from(buffer)
 }
 
 impl MyImage {
