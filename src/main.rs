@@ -8,6 +8,7 @@ mod characters;
 mod source;
 
 use alloc::vec::Vec;
+use core::panic::PanicInfo;
 
 use embedded_graphics::Drawable;
 use embedded_graphics::geometry::Point;
@@ -15,26 +16,94 @@ use embedded_graphics::image::{Image, ImageRaw};
 use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
 use embedded_graphics::prelude::Size;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle, StyledDrawable};
+use uefi::boot::{OpenProtocolAttributes, OpenProtocolParams};
 use uefi::prelude::*;
+use uefi::println;
 use uefi::proto::console::gop::GraphicsOutput;
 
 use uefi_graphics2::UefiDisplay;
 
+#[panic_handler]
+fn panic(_: &PanicInfo) -> ! {
+    println!("panic");
+    loop {}
+}
+
 #[entry]
 fn main() -> Status {
-    uefi::helpers::init().unwrap();
+    println!("phase zero");
+
+    boot::stall(3_000_000);
+    if uefi::helpers::init().is_err() {
+        println!("uefi::helpers::init() failed");
+
+        boot::stall(3_000_000);
+
+        return Status::ABORTED;
+    }
+    println!("uefi::helpers::init() okay");
+
+    boot::stall(3_000_000);
 
     // Disable the watchdog timer
 
-    boot::set_watchdog_timer(0, 0x10000, None).unwrap();
+    if boot::set_watchdog_timer(0, 0x10000, None).is_err() {
+        println!("boot::set_watchdog_timer() failed");
+
+        boot::stall(3_000_000);
+
+        return Status::ABORTED;
+    }
+    println!("boot::set_watchdog_timer() okay");
+
+    boot::stall(3_000_000);
 
     // Get gop
-    let gop_handle = boot::get_handle_for_protocol::<GraphicsOutput>().unwrap();
-    let mut gop = boot::open_protocol_exclusive::<GraphicsOutput>(gop_handle).unwrap();
+    let gop_handle = if let Ok(h) = boot::get_handle_for_protocol::<GraphicsOutput>() {
+        h
+    } else {
+        println!("boot::get_handle_for_protocol() failed");
+
+        boot::stall(3_000_000);
+
+        return Status::ABORTED;
+    };
+    println!("boot::get_handle_for_protocol() okay {gop_handle:?}");
+
+    boot::stall(3_000_000);
+
+    let params = OpenProtocolParams {
+        handle: gop_handle,
+        agent: gop_handle,
+        controller: None,
+    };
+    let mut gop = if let Ok(gop) = unsafe {
+        boot::open_protocol::<GraphicsOutput>(params, OpenProtocolAttributes::GetProtocol)
+    } {
+        gop
+    } else {
+        println!("boot::open_protocol_exclusive() failed");
+
+        boot::stall(3_000_000);
+
+        return Status::ABORTED;
+    };
+    // println!("boot::open_protocol_exclusive() okay");
+
+    boot::stall(3_000_000);
 
     // Create UefiDisplay
     let mode = gop.current_mode_info();
+    // println!("mode {mode:?}");
+
+    boot::stall(3_000_000);
     let mut display = UefiDisplay::new(gop.frame_buffer(), mode).unwrap();
+
+    // println!("first phase: draw yellow rectangle");
+    // Flush everything
+    display.flush();
+
+    boot::stall(3_000_000);
 
     // Create a new rectangle
     let rectangle = Rectangle::new(
@@ -49,14 +118,40 @@ fn main() -> Status {
     rectangle
         .draw_styled(&mut PrimitiveStyle::with_fill(Rgb888::YELLOW), &mut display)
         .unwrap();
+    // Flush everything
+    display.flush();
+
+    boot::stall(3_000_000);
+
+    // println!("second phase: draw colored board");
+    // Flush everything
+    display.flush();
+
+    boot::stall(3_000_000);
 
     let image = MyImage::new();
 
     image.guard().image(100, 100).draw(&mut display).unwrap();
 
+    boot::stall(3_000_000);
+
+    // println!("third phase: draw one line of text");
+    // Flush everything
+    display.flush();
+
+    boot::stall(3_000_000);
+
     let text = MyImage::from(text());
 
     text.guard().image(300, 300).draw(&mut display).unwrap();
+    // Flush everything
+    display.flush();
+
+    boot::stall(3_000_000);
+
+    // println!("fourth phase: draw beautiful lines of text");
+    // Flush everything
+    display.flush();
 
     let text = MyImage::from(source::main());
 
