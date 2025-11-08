@@ -5,6 +5,7 @@
 extern crate alloc;
 
 mod characters;
+mod source;
 
 use alloc::vec::Vec;
 
@@ -51,11 +52,15 @@ fn main() -> Status {
 
     let image = MyImage::new();
 
-    image.guard().image().draw(&mut display).unwrap();
+    image.guard().image(100, 100).draw(&mut display).unwrap();
 
     let text = MyImage::from(text());
 
-    text.guard().image().draw(&mut display).unwrap();
+    text.guard().image(300, 300).draw(&mut display).unwrap();
+
+    let text = MyImage::from(source::main());
+
+    text.guard().image(300, 500).draw(&mut display).unwrap();
 
     // Flush everything
     display.flush();
@@ -124,7 +129,7 @@ impl MyImage {
 }
 
 impl<'a> ImageGuard<'a> {
-    fn image(&'a self) -> Image<'a, ImageRaw<'a, Rgb888>> {
-        Image::new(&self.data, Point::new(100, 100))
+    fn image(&'a self, position_x: i32, position_y: i32) -> Image<'a, ImageRaw<'a, Rgb888>> {
+        Image::new(&self.data, Point::new(position_x, position_y))
     }
 }
