@@ -159,7 +159,9 @@ fn main() -> Status {
 
     text.guard().image(300, 500).draw(&mut display).unwrap();
 
-    let text = MyImage::from(source::text(800, &format!("{:?}", display.log())));
+    let pixels = source::text(800, &format!("mode {mode:?}\n{:?}", display.log()));
+
+    let text = MyImage::from(pixels);
 
     text.guard_width(800)
         .image(0, 0)
