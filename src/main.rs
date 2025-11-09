@@ -131,7 +131,7 @@ fn main() -> Status {
 
     // boot::stall(3_000_000);
 
-    let image = MyImage::new();
+    let image = TextData::new();
 
     image.guard().image(100, 100).draw(&mut display).unwrap();
 
@@ -143,7 +143,7 @@ fn main() -> Status {
 
     // boot::stall(3_000_000);
 
-    let text = MyImage::from(text());
+    let text = TextData::from(text());
 
     text.guard().image(300, 300).draw(&mut display).unwrap();
     // Flush everything
@@ -155,13 +155,13 @@ fn main() -> Status {
     // Flush everything
     display.flush();
 
-    let text = MyImage::from(source::main());
+    let text = TextData::from(source::main());
 
     text.guard().image(300, 500).draw(&mut display).unwrap();
 
     let pixels = source::text(800, &format!("mode {mode:?}\n{:?}", display.log()));
 
-    let text = MyImage::from(pixels);
+    let text = TextData::from(pixels);
 
     text.guard_width(800)
         .image(0, 0)
@@ -176,7 +176,7 @@ fn main() -> Status {
     Status::SUCCESS
 }
 
-struct MyImage {
+struct TextData {
     data: Vec<u8>,
 }
 
@@ -184,13 +184,13 @@ struct ImageGuard<'a> {
     data: ImageRaw<'a, Rgb888>,
 }
 
-impl From<Vec<u8>> for MyImage {
+impl From<Vec<u8>> for TextData {
     fn from(data: Vec<u8>) -> Self {
-        MyImage { data }
+        TextData { data }
     }
 }
 
-fn text() -> MyImage {
+fn text() -> TextData {
     let mut buffer = vec![255; 300 * 32 * 3];
     let mut x_cursor = 0;
     for c in "中华人民共和国".chars() {
@@ -208,10 +208,10 @@ fn text() -> MyImage {
         x_cursor += 32;
     }
 
-    MyImage::from(buffer)
+    TextData::from(buffer)
 }
 
-impl MyImage {
+impl TextData {
     fn new() -> Self {
         let mut data = Vec::new();
         for i in 0..300 {
@@ -225,7 +225,7 @@ impl MyImage {
                 data.push(b);
             }
         }
-        MyImage { data: data }
+        TextData { data: data }
     }
     fn guard<'a>(&'a self) -> ImageGuard<'a> {
         ImageGuard {
