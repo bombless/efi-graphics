@@ -65,3 +65,43 @@ pub(crate) fn main() -> Vec<u8> {
         .chain(pixel_data_second_line)
         .collect();
 }
+
+pub(crate) fn text(width: usize, text: &str) -> Vec<u8> {
+    let font = {
+        let font_data = include_bytes!("../../WenQuanYiMicroHei.ttf");
+        Font::try_from_bytes(font_data as &[u8]).expect("error constructing a Font from bytes")
+    };
+
+    let height: f32 = 18.0;
+
+    let scale = Scale {
+        x: height,
+        y: height,
+    };
+
+    let v_metrics = font.v_metrics(scale);
+    let offset = point(0.0, v_metrics.ascent);
+
+    let glyphs: Vec<_> = font.layout(&text, scale, offset).collect();
+
+    let mut pixel_data = vec![0u8; width * 32 * 3];
+    for g in glyphs {
+        if let Some(bb) = g.pixel_bounding_box() {
+            g.draw(|x, y, v| {
+                // v should be in the range 0.0 to 1.0
+                let value = (v * 255.0) as u8;
+
+                let x = x as i32 + bb.min.x;
+                let y = y as i32 + bb.min.y;
+                if x >= width as _ || y >= 32 {
+                    return;
+                }
+                let offset = (x * 3 + y * width as i32 * 3) as usize;
+                pixel_data[offset] = value;
+                pixel_data[offset + 1] = value;
+                pixel_data[offset + 2] = value;
+            })
+        }
+    }
+    pixel_data
+}

@@ -21,11 +21,11 @@ use uefi::prelude::*;
 use uefi::println;
 use uefi::proto::console::gop::GraphicsOutput;
 
-use uefi_graphics2::UefiDisplay;
+use uefi_graphics2::{LOG, UefiDisplay};
 
 #[panic_handler]
-fn panic(_: &PanicInfo) -> ! {
-    println!("panic");
+fn panic(i: &PanicInfo) -> ! {
+    println!("panic {i:?}");
     loop {}
 }
 
@@ -33,30 +33,30 @@ fn panic(_: &PanicInfo) -> ! {
 fn main() -> Status {
     println!("phase zero");
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
     if uefi::helpers::init().is_err() {
         println!("uefi::helpers::init() failed");
 
-        boot::stall(3_000_000);
+        // boot::stall(3_000_000);
 
         return Status::ABORTED;
     }
     println!("uefi::helpers::init() okay");
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
 
     // Disable the watchdog timer
 
     if boot::set_watchdog_timer(0, 0x10000, None).is_err() {
         println!("boot::set_watchdog_timer() failed");
 
-        boot::stall(3_000_000);
+        // boot::stall(3_000_000);
 
         return Status::ABORTED;
     }
     println!("boot::set_watchdog_timer() okay");
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
 
     // Get gop
     let gop_handle = if let Ok(h) = boot::get_handle_for_protocol::<GraphicsOutput>() {
@@ -64,13 +64,13 @@ fn main() -> Status {
     } else {
         println!("boot::get_handle_for_protocol() failed");
 
-        boot::stall(3_000_000);
+        // boot::stall(3_000_000);
 
         return Status::ABORTED;
     };
     println!("boot::get_handle_for_protocol() okay {gop_handle:?}");
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
 
     let params = OpenProtocolParams {
         handle: gop_handle,
@@ -84,26 +84,26 @@ fn main() -> Status {
     } else {
         println!("boot::open_protocol_exclusive() failed");
 
-        boot::stall(3_000_000);
+        // boot::stall(3_000_000);
 
         return Status::ABORTED;
     };
     // println!("boot::open_protocol_exclusive() okay");
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
 
     // Create UefiDisplay
     let mode = gop.current_mode_info();
     // println!("mode {mode:?}");
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
     let mut display = UefiDisplay::new(gop.frame_buffer(), mode).unwrap();
 
     // println!("first phase: draw yellow rectangle");
     // Flush everything
     display.flush();
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
 
     // Create a new rectangle
     let rectangle = Rectangle::new(
@@ -121,25 +121,25 @@ fn main() -> Status {
     // Flush everything
     display.flush();
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
 
     // println!("second phase: draw colored board");
     // Flush everything
     display.flush();
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
 
     let image = MyImage::new();
 
     image.guard().image(100, 100).draw(&mut display).unwrap();
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
 
     // println!("third phase: draw one line of text");
     // Flush everything
     display.flush();
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
 
     let text = MyImage::from(text());
 
@@ -147,7 +147,7 @@ fn main() -> Status {
     // Flush everything
     display.flush();
 
-    boot::stall(3_000_000);
+    // boot::stall(3_000_000);
 
     // println!("fourth phase: draw beautiful lines of text");
     // Flush everything
@@ -156,6 +156,13 @@ fn main() -> Status {
     let text = MyImage::from(source::main());
 
     text.guard().image(300, 500).draw(&mut display).unwrap();
+
+    let text = MyImage::from(source::text(800, &format!("{:?}", display.log())));
+
+    text.guard_width(800)
+        .image(0, 0)
+        .draw(&mut display)
+        .unwrap();
 
     // Flush everything
     display.flush();
@@ -219,6 +226,11 @@ impl MyImage {
     fn guard<'a>(&'a self) -> ImageGuard<'a> {
         ImageGuard {
             data: ImageRaw::new(&self.data, 300),
+        }
+    }
+    fn guard_width<'a>(&'a self, width: u32) -> ImageGuard<'a> {
+        ImageGuard {
+            data: ImageRaw::new(&self.data, width),
         }
     }
 }
