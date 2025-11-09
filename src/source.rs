@@ -97,7 +97,7 @@ pub(crate) fn text(width: usize, text: &str) -> Vec<u8> {
         let glyph = scaled.positioned(cursor);
         cursor.x += w;
         if let Some(bounding_box) = glyph.pixel_bounding_box() {
-            if c == '\n' || bounding_box.max.x + libm::ceilf(cursor.x) as i32 >= 800 {
+            if c == '\n' || bounding_box.max.x + libm::ceilf(cursor.x) as i32 >= width as i32 {
                 cursor.x = 0.0;
                 cursor.y += 32.0;
                 line_count += 1;

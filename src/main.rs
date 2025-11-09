@@ -168,15 +168,31 @@ fn main() -> Status {
 
     text.guard().image(300, 500).draw(&mut display).unwrap();
 
-    let pixels = source::text(1920, &format!("mode {mode:?}\n{:?}", display.log()));
+    let pixels = source::text(1800, &format!("mode {mode:?}\n{:?}", display.log()));
 
     let text = TextData::from(pixels);
 
-    text.guard_width(1920)
-        .image(0, 0)
+    text.guard_width(1800)
+        .image(0, 30)
         .draw(&mut display)
         .unwrap();
 
+    // Flush everything
+    display.flush();
+
+    // Create a new rectangle
+    let rectangle = Rectangle::new(
+        Point { x: 0, y: 0 },
+        Size {
+            width: 1024,
+            height: 30,
+        },
+    );
+
+    // Draw the text on the display
+    rectangle
+        .draw_styled(&mut PrimitiveStyle::with_fill(Rgb888::YELLOW), &mut display)
+        .unwrap();
     // Flush everything
     display.flush();
 
