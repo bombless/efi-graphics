@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use core::iter::repeat_n;
 use rusttype::{Font, Scale, point};
 
-pub(crate) fn main() -> Vec<u8> {
+pub(crate) fn main() -> super::TextData {
     let font = {
         let font_data = include_bytes!("../../WenQuanYiMicroHei.ttf");
         Font::try_from_bytes(font_data as &[u8]).expect("error constructing a Font from bytes")
@@ -61,10 +61,13 @@ pub(crate) fn main() -> Vec<u8> {
             })
         }
     }
-    return pixel_data_first_line
-        .into_iter()
-        .chain(pixel_data_second_line)
-        .collect();
+    super::TextData {
+        width: 300,
+        data: pixel_data_first_line
+            .into_iter()
+            .chain(pixel_data_second_line)
+            .collect(),
+    }
 }
 
 pub(crate) fn text(width: usize, text: &str) -> Vec<u8> {

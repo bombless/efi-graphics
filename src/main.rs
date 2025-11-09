@@ -132,9 +132,9 @@ fn main() -> Status {
 
     // boot::stall(3_000_000);
 
-    let image = TextData::new();
+    let image = TextData::demo();
 
-    image.guard().image(100, 100).draw(&mut display).unwrap();
+    image.guard().position(100, 100).draw(&mut display).unwrap();
 
     // boot::stall(3_000_000);
 
@@ -144,9 +144,9 @@ fn main() -> Status {
 
     // boot::stall(3_000_000);
 
-    let text = TextData::from(text());
+    let text = text();
 
-    text.guard().image(300, 300).draw(&mut display).unwrap();
+    text.guard().position(300, 300).draw(&mut display).unwrap();
     // Flush everything
     display.flush();
 
@@ -156,33 +156,28 @@ fn main() -> Status {
     // Flush everything
     display.flush();
 
-    let text = TextData::from(new_text());
+    let text = new_text();
 
-    text.guard().image(0, 0).draw(&mut display).unwrap();
+    text.guard().position(0, 560).draw(&mut display).unwrap();
 
     display.flush();
 
     // boot::stall(13_000_000);
 
-    let text = TextData::from(source::main());
+    let text = source::main();
 
-    text.guard().image(300, 500).draw(&mut display).unwrap();
+    text.guard().position(300, 500).draw(&mut display).unwrap();
 
-    let pixels = source::text(1800, &format!("mode {mode:?}\n{:?}", display.log()));
+    let text = TextData::text(1800, &format!("mode {mode:?}\n{:?}", display.log()));
 
-    let text = TextData::from(pixels);
-
-    text.guard_width(1800)
-        .image(0, 30)
-        .draw(&mut display)
-        .unwrap();
+    text.guard().position(0, 0).draw(&mut display).unwrap();
 
     // Flush everything
     display.flush();
 
     // Create a new rectangle
     let rectangle = Rectangle::new(
-        Point { x: 0, y: 0 },
+        Point { x: 0, y: 600 },
         Size {
             width: 1024,
             height: 30,
@@ -202,17 +197,12 @@ fn main() -> Status {
 }
 
 struct TextData {
+    width: usize,
     data: Vec<u8>,
 }
 
 struct ImageGuard<'a> {
     data: ImageRaw<'a, Rgb888>,
-}
-
-impl From<Vec<u8>> for TextData {
-    fn from(data: Vec<u8>) -> Self {
-        TextData { data }
-    }
 }
 
 fn text() -> TextData {
@@ -233,7 +223,10 @@ fn text() -> TextData {
         x_cursor += 32;
     }
 
-    TextData::from(buffer)
+    TextData {
+        width: 300,
+        data: buffer,
+    }
 }
 
 fn new_text() -> TextData {
@@ -254,11 +247,20 @@ fn new_text() -> TextData {
         x_cursor += 32;
     }
 
-    TextData::from(buffer)
+    TextData {
+        width: 300,
+        data: buffer,
+    }
 }
 
 impl TextData {
-    fn new() -> Self {
+    fn text(width: usize, text: &str) -> Self {
+        TextData {
+            width,
+            data: source::text(width, text),
+        }
+    }
+    fn demo() -> Self {
         let mut data = Vec::new();
         for i in 0..300 {
             for j in 0..300 {
@@ -271,22 +273,20 @@ impl TextData {
                 data.push(b);
             }
         }
-        TextData { data: data }
+        TextData {
+            width: 300,
+            data: data,
+        }
     }
     fn guard<'a>(&'a self) -> ImageGuard<'a> {
         ImageGuard {
-            data: ImageRaw::new(&self.data, 300),
-        }
-    }
-    fn guard_width<'a>(&'a self, width: u32) -> ImageGuard<'a> {
-        ImageGuard {
-            data: ImageRaw::new(&self.data, width),
+            data: ImageRaw::new(&self.data, self.width as _),
         }
     }
 }
 
 impl<'a> ImageGuard<'a> {
-    fn image(&'a self, position_x: i32, position_y: i32) -> Image<'a, ImageRaw<'a, Rgb888>> {
+    fn position(&'a self, position_x: i32, position_y: i32) -> Image<'a, ImageRaw<'a, Rgb888>> {
         Image::new(&self.data, Point::new(position_x, position_y))
     }
 }
