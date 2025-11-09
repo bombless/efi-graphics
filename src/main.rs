@@ -4,6 +4,7 @@
 #[macro_use]
 extern crate alloc;
 
+mod bitmap;
 mod characters;
 mod source;
 
@@ -155,6 +156,14 @@ fn main() -> Status {
     // Flush everything
     display.flush();
 
+    let text = TextData::from(new_text());
+
+    text.guard().image(0, 0).draw(&mut display).unwrap();
+
+    display.flush();
+
+    boot::stall(13_000_000);
+
     let text = TextData::from(source::main());
 
     text.guard().image(300, 500).draw(&mut display).unwrap();
@@ -195,6 +204,27 @@ fn text() -> TextData {
     let mut x_cursor = 0;
     for c in "中华人民共和国".chars() {
         let character = characters::character_get_bitmap(c as _);
+        for i in 0..32 {
+            for j in 0..32 {
+                if character[j] & (1 << i) != 0 {
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3] = 0;
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 1] = 0;
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 2] = 0;
+                }
+            }
+        }
+
+        x_cursor += 32;
+    }
+
+    TextData::from(buffer)
+}
+
+fn new_text() -> TextData {
+    let mut buffer = vec![255; 300 * 32 * 3];
+    let mut x_cursor = 0;
+    for c in "吃菜啊别光喝酒".chars() {
+        let character = bitmap::bitmap(c as _);
         for i in 0..32 {
             for j in 0..32 {
                 if character[j] & (1 << i) != 0 {
