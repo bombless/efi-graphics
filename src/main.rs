@@ -16,7 +16,7 @@ use embedded_graphics::Drawable;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::image::{Image, ImageRaw};
 use embedded_graphics::pixelcolor::{Rgb888, RgbColor};
-use embedded_graphics::prelude::Size;
+use embedded_graphics::prelude::{DrawTarget, Size};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle, StyledDrawable};
 use uefi::boot::{OpenProtocolAttributes, OpenProtocolParams};
 use uefi::prelude::*;
@@ -134,7 +134,7 @@ fn main() -> Status {
 
     let image = TextData::demo();
 
-    image.guard().position(100, 100).draw(&mut display).unwrap();
+    image.position(100, 100).draw(&mut display).unwrap();
 
     // boot::stall(3_000_000);
 
@@ -146,7 +146,7 @@ fn main() -> Status {
 
     let text = text();
 
-    text.guard().position(300, 300).draw(&mut display).unwrap();
+    text.position(300, 300).draw(&mut display).unwrap();
     // Flush everything
     display.flush();
 
@@ -158,7 +158,7 @@ fn main() -> Status {
 
     let text = new_text();
 
-    text.guard().position(0, 560).draw(&mut display).unwrap();
+    text.position(0, 560).draw(&mut display).unwrap();
 
     display.flush();
 
@@ -166,11 +166,11 @@ fn main() -> Status {
 
     let text = source::main();
 
-    text.guard().position(300, 500).draw(&mut display).unwrap();
+    text.position(300, 500).draw(&mut display).unwrap();
 
     let text = TextData::text(1800, &format!("mode {mode:?}\n{:?}", display.log()));
 
-    text.guard().position(0, 0).draw(&mut display).unwrap();
+    text.position(0, 0).draw(&mut display).unwrap();
 
     // Flush everything
     display.flush();
@@ -203,6 +203,7 @@ struct TextData {
 
 struct ImageGuard<'a> {
     data: ImageRaw<'a, Rgb888>,
+    position: Point,
 }
 
 fn text() -> TextData {
@@ -278,15 +279,16 @@ impl TextData {
             data: data,
         }
     }
-    fn guard<'a>(&'a self) -> ImageGuard<'a> {
+    fn position<'a>(&'a self, x: i32, y: i32) -> ImageGuard<'a> {
         ImageGuard {
             data: ImageRaw::new(&self.data, self.width as _),
+            position: Point::new(x, y),
         }
     }
 }
 
 impl<'a> ImageGuard<'a> {
-    fn position(&'a self, position_x: i32, position_y: i32) -> Image<'a, ImageRaw<'a, Rgb888>> {
-        Image::new(&self.data, Point::new(position_x, position_y))
+    fn draw(&'a self, display: &mut UefiDisplay) -> Result<(), <UefiDisplay as DrawTarget>::Error> {
+        Image::new(&self.data, self.position).draw(display)
     }
 }
