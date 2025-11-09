@@ -6,6 +6,7 @@ extern crate alloc;
 
 mod bitmap;
 mod characters;
+mod gray8;
 mod source;
 
 use alloc::vec::Vec;
@@ -160,6 +161,10 @@ fn main() -> Status {
 
     text.position(0, 560).draw(&mut display).unwrap();
 
+    let text = gray8_text();
+
+    text.position(300, 560).draw(&mut display).unwrap();
+
     display.flush();
 
     // boot::stall(13_000_000);
@@ -241,6 +246,40 @@ fn new_text() -> TextData {
                     buffer[(x_cursor + i) * 3 + j * 300 * 3] = 0;
                     buffer[(x_cursor + i) * 3 + j * 300 * 3 + 1] = 0;
                     buffer[(x_cursor + i) * 3 + j * 300 * 3 + 2] = 0;
+                }
+            }
+        }
+
+        x_cursor += 32;
+    }
+
+    TextData {
+        width: 300,
+        data: buffer,
+    }
+}
+
+fn gray8_text() -> TextData {
+    let mut buffer = vec![0; 300 * 32 * 3];
+    let mut x_cursor = 0;
+    for c in "今天又是新的一天".chars() {
+        let character = gray8::bitmap(c as _);
+        for i in 0..32 {
+            for j in 0..32 {
+                if character[0][j] & (1 << i) != 0 {
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3] |= 128;
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 1] |= 128;
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 2] |= 128;
+                }
+                if character[1][j] & (1 << i) != 0 {
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3] |= 64;
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 1] |= 64;
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 2] |= 64;
+                }
+                if character[2][j] & (1 << i) != 0 {
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3] |= 32;
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 1] |= 32;
+                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 2] |= 32;
                 }
             }
         }
