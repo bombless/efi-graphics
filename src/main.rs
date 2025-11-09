@@ -8,6 +8,7 @@ mod characters;
 mod source;
 
 use alloc::vec::Vec;
+#[cfg(not(test))]
 use core::panic::PanicInfo;
 
 use embedded_graphics::Drawable;
@@ -21,8 +22,9 @@ use uefi::prelude::*;
 use uefi::println;
 use uefi::proto::console::gop::GraphicsOutput;
 
-use uefi_graphics2::{LOG, UefiDisplay};
+use uefi_graphics2::UefiDisplay;
 
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(i: &PanicInfo) -> ! {
     println!("panic {i:?}");
