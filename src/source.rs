@@ -101,7 +101,7 @@ pub(crate) fn text(width: usize, text: &str) -> Vec<u8> {
                 cursor.x = 0.0;
                 cursor.y += 32.0;
                 line_count += 1;
-                data.extend(repeat_n(0, 800 * 32 * 3))
+                data.extend(repeat_n(0, width * 32 * 3))
             }
             if c == '\n' {
                 continue;
@@ -110,7 +110,7 @@ pub(crate) fn text(width: usize, text: &str) -> Vec<u8> {
             glyph.draw(|x, y, v| {
                 let x = x as i32 + bounding_box.min.x + 1;
                 let y = y as i32 + bounding_box.min.y;
-                if x >= 0 && y >= 0 && x < 800 && y < line_count * 32 {
+                if x >= 0 && y >= 0 && x < width as i32 && y < line_count * 32 {
                     let x = x as usize;
                     let y = y as usize;
                     data[(y * width + x) * 3] = (v * 255.0) as u8;

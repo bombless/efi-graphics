@@ -28,7 +28,7 @@ use uefi_graphics2::UefiDisplay;
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(i: &PanicInfo) -> ! {
-    println!("panic {i:?}");
+    println!("panic {:?}", i.location());
     loop {}
 }
 
@@ -162,17 +162,17 @@ fn main() -> Status {
 
     display.flush();
 
-    boot::stall(13_000_000);
+    // boot::stall(13_000_000);
 
     let text = TextData::from(source::main());
 
     text.guard().image(300, 500).draw(&mut display).unwrap();
 
-    let pixels = source::text(800, &format!("mode {mode:?}\n{:?}", display.log()));
+    let pixels = source::text(1920, &format!("mode {mode:?}\n{:?}", display.log()));
 
     let text = TextData::from(pixels);
 
-    text.guard_width(800)
+    text.guard_width(1920)
         .image(0, 0)
         .draw(&mut display)
         .unwrap();
