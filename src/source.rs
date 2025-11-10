@@ -93,25 +93,29 @@ pub(crate) fn text(width: usize, text: &str) -> Vec<u8> {
         let glyph = font.glyph(c);
         let id = glyph.id();
         let scaled = glyph.scaled(scale);
+
         let w = scaled.h_metrics().advance_width;
-        if let Some(last) = last_glyph {
+        let is_new_line = c == '\n' || libm::ceilf(cursor.x) + w >= width as f32;
+        if is_new_line {
+            cursor.x = 0.0;
+            cursor.y += 32.0;
+            line_count += 1;
+            data.extend(repeat_n(0, width * 32 * 3))
+        }
+        if !is_new_line && let Some(last) = last_glyph {
             cursor.x += font.pair_kerning(scale, last, id);
         }
         let glyph = scaled.positioned(cursor);
-        cursor.x += w;
+        if !is_new_line {
+            cursor.x += w;
+        }
         if let Some(bounding_box) = glyph.pixel_bounding_box() {
-            if c == '\n' || bounding_box.max.x + libm::ceilf(cursor.x) as i32 >= width as i32 {
-                cursor.x = 0.0;
-                cursor.y += 32.0;
-                line_count += 1;
-                data.extend(repeat_n(0, width * 32 * 3))
-            }
             if c == '\n' {
                 continue;
             }
             // Draw the glyph into the image per-pixel by using the draw closure
             glyph.draw(|x, y, v| {
-                let x = x as i32 + bounding_box.min.x + 1;
+                let x = x as i32 + bounding_box.min.x;
                 let y = y as i32 + bounding_box.min.y;
                 if x >= 0 && y >= 0 && x < width as i32 && y < line_count * 32 {
                     let x = x as usize;
