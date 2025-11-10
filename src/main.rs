@@ -182,7 +182,7 @@ fn main() -> Status {
 
     // Create a new rectangle
     let rectangle = Rectangle::new(
-        Point { x: 0, y: 600 },
+        Point { x: 0, y: 700 },
         Size {
             width: 1024,
             height: 30,
@@ -260,35 +260,37 @@ fn new_text() -> TextData {
 }
 
 fn gray8_text() -> TextData {
-    let mut buffer = vec![0; 300 * 32 * 3];
-    let mut x_cursor = 0;
-    for c in "今天又是新的一天".chars() {
-        let character = gray8::bitmap(c as _);
-        for i in 0..32 {
-            for j in 0..32 {
-                if character[0][j] & (1 << i) != 0 {
-                    buffer[(x_cursor + i) * 3 + j * 300 * 3] |= 128;
-                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 1] |= 128;
-                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 2] |= 128;
-                }
-                if character[1][j] & (1 << i) != 0 {
-                    buffer[(x_cursor + i) * 3 + j * 300 * 3] |= 64;
-                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 1] |= 64;
-                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 2] |= 64;
-                }
-                if character[2][j] & (1 << i) != 0 {
-                    buffer[(x_cursor + i) * 3 + j * 300 * 3] |= 32;
-                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 1] |= 32;
-                    buffer[(x_cursor + i) * 3 + j * 300 * 3 + 2] |= 32;
+    let mut buffer = vec![0; 500 * 32 * 3 * 3];
+    let mut height_offset = 0;
+    let mut graylevel = 2;
+    for graylevel_pointer_limit in 0..3 {
+        let mut x_cursor = 0;
+        for c in format!("今天又是新的一天 graylevel {graylevel}").chars() {
+            let character = gray8::bitmap(c as _);
+            for i in 0..32 {
+                for j in 0..32 {
+                    for offset in 0..8 {
+                        let pointer = offset.clamp(0, graylevel_pointer_limit);
+                        if character[pointer][j] & (1 << i) != 0 {
+                            buffer[height_offset + (x_cursor + i) * 3 + j * 500 * 3] |=
+                                1 << (7 - offset);
+                            buffer[height_offset + (x_cursor + i) * 3 + j * 500 * 3 + 1] |=
+                                1 << (7 - offset);
+                            buffer[height_offset + (x_cursor + i) * 3 + j * 500 * 3 + 2] |=
+                                1 << (7 - offset);
+                        }
+                    }
                 }
             }
-        }
 
-        x_cursor += 32;
+            x_cursor += if c > '~' { 32 } else { 16 };
+        }
+        height_offset += 500 * 32 * 3;
+        graylevel *= 2;
     }
 
     TextData {
-        width: 300,
+        width: 500,
         data: buffer,
     }
 }
