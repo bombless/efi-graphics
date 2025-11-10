@@ -196,6 +196,30 @@ fn main() -> Status {
     // Flush everything
     display.flush();
 
+    for size in 1..900 {
+        let rectangle = Rectangle::new(
+            Point { x: 0, y: 0 },
+            Size {
+                width: size,
+                height: size,
+            },
+        );
+
+        // Draw the text on the display
+        rectangle
+            .draw_styled(&mut PrimitiveStyle::with_fill(Rgb888::YELLOW), &mut display)
+            .unwrap();
+
+        let text = TextData::text(200, &format!("size {size}"));
+
+        text.position(0, 750).draw(&mut display).unwrap();
+
+        // Flush everything
+        display.flush();
+
+        boot::stall(100_000);
+    }
+
     boot::stall(100_000_000);
 
     Status::SUCCESS
