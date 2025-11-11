@@ -10,6 +10,12 @@ mod gray8;
 mod source;
 
 use alloc::vec::Vec;
+
+use uefi::proto::console::text::{Input, Key, ScanCode};
+use uefi::{Result as OutputResult, ResultExt, boot};
+
+use alloc::boxed::Box;
+
 #[cfg(not(test))]
 use core::panic::PanicInfo;
 
@@ -196,33 +202,58 @@ fn main() -> Status {
     // Flush everything
     display.flush();
 
-    for size in 1..900 {
-        let rectangle = Rectangle::new(
-            Point { x: 0, y: 0 },
-            Size {
-                width: size,
-                height: size,
-            },
-        );
+    let data = generate_frame(42);
 
-        // Draw the text on the display
-        rectangle
-            .draw_styled(&mut PrimitiveStyle::with_fill(Rgb888::YELLOW), &mut display)
+    let some_data: &[u8] = unsafe { core::mem::transmute(&data[..]) };
+    let text = TextData::text(800, &format!("{some_data:?}"));
+
+    text.position(0, 0).draw(&mut display).unwrap();
+
+    display.flush();
+
+    // boot::stall(13_000_000);
+
+    let image_raw = ImageRaw::<Rgb888>::new(some_data, 800);
+    Image::new(&image_raw, Point { x: 0, y: 0 })
+        .draw(&mut display)
+        .unwrap();
+    display.flush();
+
+    read_keyboard_events(&mut display).unwrap();
+
+    for step in 1..900 {
+        let data = generate_frame(step);
+
+        let image_raw = ImageRaw::<Rgb888>::new(unsafe { core::mem::transmute(&data[..]) }, 800);
+        Image::new(&image_raw, Point { x: 0, y: 0 })
+            .draw(&mut display)
             .unwrap();
 
-        let text = TextData::text(200, &format!("size {size}"));
+        let text = TextData::text(200, &format!("step {step}"));
 
-        text.position(0, 750).draw(&mut display).unwrap();
+        text.position(800, 0).draw(&mut display).unwrap();
 
         // Flush everything
         display.flush();
 
-        boot::stall(100_000);
+        boot::stall(10_000);
     }
 
-    boot::stall(100_000_000);
+    read_keyboard_events(&mut display).unwrap();
 
     Status::SUCCESS
+}
+
+fn generate_frame(step: u16) -> Box<[[(u8, u8, u8); 800]; 800]> {
+    let mut buf = Box::new([[(0u8, 0u8, 0u8); 800]; 800]);
+
+    for row in buf.iter_mut() {
+        for (r, ..) in row.iter_mut() {
+            *r = step as u8;
+        }
+    }
+
+    buf
 }
 
 struct TextData {
@@ -233,6 +264,7 @@ struct TextData {
 struct ImageGuard<'a> {
     data: ImageRaw<'a, Rgb888>,
     position: Point,
+    line_count: usize,
 }
 
 fn text() -> TextData {
@@ -348,12 +380,58 @@ impl TextData {
         ImageGuard {
             data: ImageRaw::new(&self.data, self.width as _),
             position: Point::new(x, y),
+            line_count: self.data.len() / self.width / 3 / 32,
         }
     }
 }
 
 impl<'a> ImageGuard<'a> {
-    fn draw(&'a self, display: &mut UefiDisplay) -> Result<(), <UefiDisplay as DrawTarget>::Error> {
-        Image::new(&self.data, self.position).draw(display)
+    fn draw(
+        &'a self,
+        display: &mut UefiDisplay,
+    ) -> Result<usize, <UefiDisplay as DrawTarget>::Error> {
+        Image::new(&self.data, self.position).draw(display)?;
+        Ok(self.line_count)
     }
+}
+
+fn read_keyboard_events(display: &mut UefiDisplay) -> OutputResult {
+    let handle = boot::get_handle_for_protocol::<Input>().unwrap();
+    let mut input = boot::open_protocol_exclusive::<Input>(handle).unwrap();
+    let mut height = 32;
+
+    let text = TextData::text(800, &format!("key any key"));
+
+    text.position(0, 0).draw(display).unwrap();
+    display.flush();
+    loop {
+        // Pause until a keyboard event occurs.
+        let mut events = [input.wait_for_key_event().unwrap()];
+        boot::wait_for_event(&mut events).discard_errdata()?;
+
+        match input.read_key()? {
+            // Example of handling a printable key: print a message when
+            // the 'u' key is pressed.
+            Some(Key::Printable(key)) => {
+                let text = TextData::text(800, &format!("key {} pressed", char::from(key)));
+
+                let line_count = text.position(0, height as i32).draw(display).unwrap();
+                height += line_count * 32;
+                display.flush();
+            }
+
+            // Example of handling a special key: exit the loop when the
+            // escape key is pressed.
+            Some(Key::Special(ScanCode::ESCAPE)) => {
+                let text = TextData::text(800, &format!("ESC pressed"));
+
+                text.position(0, height as i32).draw(display).unwrap();
+                display.flush();
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    Ok(())
 }
