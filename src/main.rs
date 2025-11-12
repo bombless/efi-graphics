@@ -139,9 +139,9 @@ fn main() -> Status {
 
     // boot::stall(3_000_000);
 
-    let image = TextData::demo();
+    let image = TextData::board();
 
-    image.position(100, 100).draw(&mut display).unwrap();
+    image.position(0, 0).draw(&mut display).unwrap();
 
     // boot::stall(3_000_000);
 
@@ -202,29 +202,34 @@ fn main() -> Status {
     // Flush everything
     display.flush();
 
-    let data = generate_frame(42);
+    // let data = generate_frame(42);
 
-    let some_data: &[u8] = unsafe { core::mem::transmute(&data[..]) };
-    let text = TextData::text(800, &format!("{some_data:?}"));
+    // let some_data: &[u8] = unsafe { core::mem::transmute(&data[..]) };
+    // let text = TextData::text(800, &format!("{some_data:?}"));
 
-    text.position(0, 0).draw(&mut display).unwrap();
+    // text.position(0, 0).draw(&mut display).unwrap();
 
-    display.flush();
+    // display.flush();
 
     // boot::stall(13_000_000);
 
-    let image_raw = ImageRaw::<Rgb888>::new(some_data, 800);
-    Image::new(&image_raw, Point { x: 0, y: 0 })
-        .draw(&mut display)
-        .unwrap();
-    display.flush();
+    // let image_raw = ImageRaw::<Rgb888>::new(some_data, 800);
+    // Image::new(&image_raw, Point { x: 0, y: 0 })
+    //     .draw(&mut display)
+    //     .unwrap();
+    // display.flush();
 
-    read_keyboard_events(&mut display).unwrap();
+    read_keyboard_events("Press ESC to start the show", &mut display).unwrap();
+
+    let mut frame = Box::new([[(0u8, 0u8, 0u8); 800]; 800]);
 
     for step in 1..900 {
-        let data = generate_frame(step);
+        generate_animation_frame_optimized(step, &mut frame);
 
-        let image_raw = ImageRaw::<Rgb888>::new(unsafe { core::mem::transmute(&data[..]) }, 800);
+        let len = 800 * 800 * 3;
+        let ptr = unsafe { core::slice::from_raw_parts(frame.as_ptr() as *const u8, len) };
+
+        let image_raw = ImageRaw::<Rgb888>::new(ptr, 800);
         Image::new(&image_raw, Point { x: 0, y: 0 })
             .draw(&mut display)
             .unwrap();
@@ -239,21 +244,32 @@ fn main() -> Status {
         boot::stall(10_000);
     }
 
-    read_keyboard_events(&mut display).unwrap();
+    read_keyboard_events("End of show! Press ESC to exit", &mut display).unwrap();
 
     Status::SUCCESS
 }
 
-fn generate_frame(step: u16) -> Box<[[(u8, u8, u8); 800]; 800]> {
-    let mut buf = Box::new([[(0u8, 0u8, 0u8); 800]; 800]);
+fn generate_animation_frame_optimized(step: u16, frame: &mut [[(u8, u8, u8); 800]; 800]) {
+    let center = 400.0;
+    let step_f32 = step as f32;
 
-    for row in buf.iter_mut() {
-        for (r, ..) in row.iter_mut() {
-            *r = step as u8;
+    for (y, row) in frame.iter_mut().enumerate() {
+        let dy = y as f32 - center;
+        let dy2 = dy * dy;
+
+        for (x, pixel) in row.iter_mut().enumerate() {
+            let dx = x as f32 - center;
+            let distance = libm::sqrtf(dx * dx + dy2);
+
+            // 多个波纹频率组合
+            let time_phase = step_f32 * 0.1;
+            let r = (libm::sinf(distance * 0.05 - time_phase) * 127.0 + 128.0) as u8;
+            let g = (libm::cosf(distance * 0.03 - time_phase * 1.5) * 127.0 + 128.0) as u8;
+            let b = (libm::sinf(distance * 0.07 - time_phase * 0.8) * 127.0 + 128.0) as u8;
+
+            *pixel = (r, g, b);
         }
     }
-
-    buf
 }
 
 struct TextData {
@@ -358,10 +374,10 @@ impl TextData {
             data: source::text(width, text),
         }
     }
-    fn demo() -> Self {
+    fn board() -> Self {
         let mut data = Vec::new();
-        for i in 0..300 {
-            for j in 0..300 {
+        for i in 0..800 {
+            for j in 0..800 {
                 let x = (i / 10 + j / 10) % 3;
                 let r = if x == 0 { 255 } else { 0 };
                 let g = if x == 1 { 255 } else { 0 };
@@ -372,7 +388,7 @@ impl TextData {
             }
         }
         TextData {
-            width: 300,
+            width: 800,
             data: data,
         }
     }
@@ -395,12 +411,12 @@ impl<'a> ImageGuard<'a> {
     }
 }
 
-fn read_keyboard_events(display: &mut UefiDisplay) -> OutputResult {
+fn read_keyboard_events(prompt: &str, display: &mut UefiDisplay) -> OutputResult {
     let handle = boot::get_handle_for_protocol::<Input>().unwrap();
     let mut input = boot::open_protocol_exclusive::<Input>(handle).unwrap();
     let mut height = 32;
 
-    let text = TextData::text(800, &format!("key any key"));
+    let text = TextData::text(800, prompt);
 
     text.position(0, 0).draw(display).unwrap();
     display.flush();
