@@ -226,8 +226,7 @@ fn main() -> Status {
     for step in 1..900 {
         generate_animation_frame_optimized(step, &mut frame);
 
-        let len = 800 * 800 * 3;
-        let ptr = unsafe { core::slice::from_raw_parts(frame.as_ptr() as *const u8, len) };
+        let ptr: &[u8; 800 * 800 * 3] = unsafe { &*(&*frame as *const _ as *const _) };
 
         let image_raw = ImageRaw::<Rgb888>::new(ptr, 800);
         Image::new(&image_raw, Point { x: 0, y: 0 })
